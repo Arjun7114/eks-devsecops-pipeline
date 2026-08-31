@@ -1,24 +1,34 @@
-# A Dockerfile is a recipe. Docker reads it top-to-bottom to build your image.
+# ===========================================================================
+#  Multi-stage Dockerfile — smaller, more secure final image.
+#  Stage 1 ("builder") installs dependencies with all the build machinery.
+#  Stage 2 (final) copies ONLY the installed packages + app code into a
+#  clean, minimal image — leaving pip caches and build tools behind.
+# ===========================================================================
 
-# 1. Start FROM a base image that already has Python 3.11 installed.
-#    "slim" means a smaller, lighter version — good practice.
-FROM python:3.11-slim
+# ---------- Stage 1: builder ----------
+FROM python:3.11-slim AS builder
 
-# 2. Set the working folder INSIDE the box. Everything after this
-#    happens in /app inside the container.
 WORKDIR /app
 
-# 3. Copy the requirements file in first, then install dependencies.
-#    (We copy this before the rest of the code on purpose — it makes
-#     future rebuilds faster. Docker caches this step.)
+# Install dependencies into a separate folder we can copy out cleanly.
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# 4. Copy the rest of your app code into the box.
-COPY . .
+# ---------- Stage 2: final (slim) image ----------
+FROM python:3.11-slim
 
-# 5. Tell Docker the app uses port 5000 (documentation for humans/tools).
+WORKDIR /app
+
+# Copy ONLY the installed Python packages from the builder stage.
+COPY --from=builder /install /usr/local
+
+# Copy just the application code (not build junk).
+COPY app.py .
+
+# Run as a non-root user for better security (also a nice interview point).
+RUN useradd --create-home appuser
+USER appuser
+
 EXPOSE 5000
 
-# 6. The command that runs when the container starts: launch the app.
 CMD ["python", "app.py"]
