@@ -66,6 +66,18 @@ A deliberately simple Python (Flask) application serves as the payload; the focu
 - **Observability** — Prometheus collects cluster and application metrics; Grafana visualizes them in live dashboards.
 - **Self-healing & scalable** — Kubernetes runs multiple replicas behind a load balancer, restarts failed pods, and scales across worker nodes.
 
+Results & Optimizations
+
+Measured, reproducible improvements from this project:
+
+Metric	Result	How it was measured
+Image size	-287 MB → 48 MB (83% smaller)	Multi-stage Docker build + non-root user; docker images before/after
+Image vulnerabilities	421 → 19 HIGH/CRITICAL (95% fewer)	Trivy scan after rebasing python:3.11 → slim multi-stage
+CI/CD pipeline speed	57 seconds end-to-end	GitHub Actions: test → Trivy scan → build → push to ECR
+Self-healing	~10 seconds pod recovery	Deleted a running pod; timed Kubernetes reschedule to Ready
+Zero-downtime deploy	300/300 requests (100%)	Continuous load during a live rolling update; 0 failed responses
+Infra provisioning	~18 minutes from code	eksctl provisioned VPC, IAM, cluster, nodes, and add-ons
+
 ## Screenshots
 
 ### CI/CD Pipeline — automated test, scan, build & push
